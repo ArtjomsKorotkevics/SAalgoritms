@@ -1,23 +1,23 @@
 import random
 import math
 import time
-# Define the objective function which calculates the total time taken by a given schedule
+# Definējam mērķa funkciju, kas aprēķina kopējo noteiktā grafika aizņemto laiku
 def objective(schedule, t, c, T):
     total_time = 0
-    penalty = 10000  # arbitrary high value to ensure deadlines are prioritized
+    penalty = 10000  # patvaļīgi liela vērtība, lai nodrošinātu termiņu prioritāti
     
     for machine_tasks in schedule:
-        machine_time = 0  # The time taken by the current machine
-        prev_product = None  # To track the previous task for cleaning time
+        machine_time = 0  # Tekošās mašīnas aizņemtais laiks
+        prev_product = None  # Lai izsekotu iepriekšējam tīrīšanas laikam
         
     for task in machine_tasks:
-        # Add cleaning time if there's a change in product
+        # Pievienojam tīrīšanas laiku, ja notiek produkta izmaiņas
         if prev_product is not None and prev_product != task:
-            cleaning_time = c[prev_product]  # Use the cleaning time for the previous product
+            cleaning_time = c[prev_product]  # Izmantojam iepriekšējā produkta tīrīšanas laiku
             machine_time += cleaning_time
             total_time += cleaning_time
             
-        # Check if adding the current task time will exceed the deadline
+        # Pārbaudam vai pašreizējā uzdevuma laika pievienošana nepārsniegs termiņu
         if machine_time + t[task] > T[task]:
             total_time += penalty
         
@@ -28,71 +28,69 @@ def objective(schedule, t, c, T):
             
     return total_time
 
-# Generate a neighboring solution by either swapping two tasks between two machines 
-# or moving a task from one machine to another
+# Ģenerējam blakus risinājumu, vai nu apmainot divus uzdevumus starp divām iekārtām
+# vai uzdevuma pārvietošana no vienas mašīnas uz citu
 def get_neighbor(schedule):
-    new_schedule = [list(machine) for machine in schedule]  # Deep copy the current schedule
-    machine1 = random.randint(0, len(schedule) - 1)  # Randomly select a machine
-    machine2 = random.randint(0, len(schedule) - 1)  # Randomly select another machine
+    new_schedule = [list(machine) for machine in schedule]  # Pašreizējā grafika kopēšana
+    machine1 = random.randint(0, len(schedule) - 1)  # Nejauši izvēlieties mašīnu
+    machine2 = random.randint(0, len(schedule) - 1)  # Nejauši izvēlieties citu mašīnu
     
-    # If the first chosen machine has no tasks, return the original schedule as it can't be modified
+    # Ja pirmajai izvēlētajai iekārtai nav uzdevumu, atgriezt sākotnējo grafiku, jo to nevar mainīt
     if not new_schedule[machine1]:
         return schedule
 
-    # Randomly select a task from the first machine
+    # Nejauši atlasīt uzdevumu no pirmās mašīnas
     task1_idx = random.randint(0, len(new_schedule[machine1]) - 1)
     task1 = new_schedule[machine1][task1_idx]
 
-    # Swap tasks within the same machine
+    # Apmainīt uzdevumus tajā pašā mašīnā
     if machine1 == machine2:
-        # If there's only one task, we can't swap it with itself; so return the original schedule
+        # Ja ir tikai viens uzdevums, mēs nevaram to aizstāt ar sevi; tāpēc atgriezt sākotnējo grafiku
         if len(new_schedule[machine2]) <= 1:
             return schedule
-        # Randomly select another task from the same machine that's different from the first
+        # Nejauši atlasīt citu uzdevumu no tās pašas iekārtas, kas atšķiras no pirmā
         task2_idx = random.randint(0, len(new_schedule[machine2]) - 1)
         while task2_idx == task1_idx:
             task2_idx = random.randint(0, len(new_schedule[machine2]) - 1)
-        # Swap the two tasks
+       # Apmainam divus uzdevumus
         new_schedule[machine1][task1_idx], new_schedule[machine2][task2_idx] = new_schedule[machine2][task2_idx], new_schedule[machine1][task1_idx]
     else:
-        # Swap tasks between different machines
-        # If the second machine has tasks, swap with a random one
+        # Apmainam uzdevumus starp dažādām mašīnām
+        # Ja otrajai mašīnai ir uzdevumi, nomainam to ar nejaušu
         if new_schedule[machine2]:
             task2_idx = random.randint(0, len(new_schedule[machine2]) - 1)
             new_schedule[machine1][task1_idx], new_schedule[machine2][task2_idx] = new_schedule[machine2][task2_idx], new_schedule[machine1][task1_idx]
         else:
-            # If the second machine has no tasks, move the task from machine1 to machine2
+            # Ja otrajai iekārtai nav uzdevumu, pārvietojam uzdevumu no mašīnas1 uz mašīnu2
             new_schedule[machine2].append(task1)
             new_schedule[machine1].pop(task1_idx)
     return new_schedule
 
-# Simulated Annealing algorithm to find the optimal schedule
+# Simulated Annealing algoritms, lai atrastu optimālo grafiku
 def simulated_annealing(t, c, T, n, initial_temperature, cooling_rate):
-    # Start with a naive initial schedule: all tasks on the first machine
+    # Sākam ar naivu sākotnējo grafiku: visi uzdevumi pirmajā mašīnā
     schedule = [list(range(len(t)))] + [[] for _ in range(n-1)]
-    # Calculate the time taken by this initial schedule
+    # Aprēķinam laiku, kas vajadzīgs šim sākotnējam grafikam
     current_cost = objective(schedule, t, c, T)
-    temp = initial_temperature  # Set the starting temperature
+    temp = initial_temperature  # Iestatam sākuma temperatūru
 
-    # Continue the search until the temperature falls below a threshold (1 in this case)
+    # Turpinam meklēšanu, līdz temperatūra nokrītas zem sliekšņa (šajā gadījumā 1)
     while temp > 1:
-        # Generate a neighboring solution
+        # Ģenerējam blakus risinājumu
         neighbor = get_neighbor(schedule)
-        # Calculate the cost of the neighboring solution
+        # Aprēķinam blakus esošā risinājuma izmaksas
         neighbor_cost = objective(neighbor, t, c, T)
 
-        # If the neighboring solution is better or there's a chance to move to a worse solution (based on current temperature),
-        # then update the current solution and its cost
+        # Ja blakus esošais risinājums ir labāks vai pastāv iespēja pāriet uz sliktāku risinājumu (pamatojoties uz pašreizējo temperatūru),
+         # tad atjauninam pašreizējo risinājumu un tā izmaksas
         if neighbor_cost < current_cost or random.uniform(0, 1) < math.exp((current_cost - neighbor_cost) / temp):
             schedule, current_cost = neighbor, neighbor_cost
 
-        # Reduce the temperature for the next iteration
+        # Samazinam temperatūru nākamajai iterācijai
         temp *= cooling_rate
         
-    # Return the found optimal schedule and its cost
+    # Atgriezt atrasto optimālo grafiku un tā izmaksas
     return schedule, current_cost
-
-import time
 
 def tests():
     test_cases = [
@@ -128,7 +126,7 @@ def tests():
     for test_case in test_cases:
         print(f"Running {test_case['name']}...")
         
-        # Unpack test case values
+        # Izpakojam testa gadījumu vērtības
         n = test_case["n"]
         t = test_case["t"]
         c = test_case["c"]
@@ -144,7 +142,7 @@ def tests():
         print("Execution Time:", end_time - start_time, "seconds")
         print("Schedule:", result)
         print("Cost:", cost)
-        print('-'*60)  # Separator line for better readability
+        print('-'*60)  # Atdalīšanas līnija labākai lasāmībai
 
 tests()
 
